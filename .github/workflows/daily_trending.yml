@@ -1,0 +1,48 @@
+name: Daily GitHub Trending Collector
+
+# 1. 触发时间设置
+on:
+  schedule:
+    # 国际标准时间 (UTC) 每天 16:00 运行，相当于北京时间每天零点 00:00
+    - cron: '0 16 * * *'
+  # 允许在 GitHub 网页上手动点击按钮立即运行测试
+  workflow_dispatch:
+
+# 2. 赋予 GitHub Actions 写回代码仓库的权限
+permissions:
+  contents: write
+
+jobs:
+  run-scraper:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: 检出当前仓库的代码到云端
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: 安装设置 Python 环境
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      # Step 3: 安装项目所需的依赖包
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Step 4: 执行你的爬虫脚本
+      - name: Run Trending Scraper
+        run: |
+          python code/scrape.py
+
+      # Step 5: 如果抓取到了新文件，自动 Git Commit 并 Push 提交回仓库
+      - name: Commit and push generated Markdown
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add TrendingLog/*.md
+          # 只有当产生新文件时才 commit, 避免无变化时报错
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: auto-update daily trending log [skip ci]" && git push)
+
